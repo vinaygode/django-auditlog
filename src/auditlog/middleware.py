@@ -8,7 +8,7 @@ from django.db.models.signals import pre_save
 try:
     from functools import partial
 except ImportError:
-    from django.utils.functional import curry as partialmethod
+    from django.utils.functional import curry as partial
 from django.apps import apps
 from auditlog.models import LogEntry
 from auditlog.compat import is_authenticated
@@ -42,19 +42,23 @@ class AuditlogMiddleware(MiddlewareMixin):
 
         # In case of proxy, set 'original' address
         if request.META.get('HTTP_X_FORWARDED_FOR'):
-            threadlocal.auditlog['remote_addr'] = request.META.get('HTTP_X_FORWARDED_FOR').split(',')[0]
+            threadlocal.auditlog['remote_addr'] = request.META.get(
+                'HTTP_X_FORWARDED_FOR').split(',')[0]
 
         # Connect signal for automatic logging
         if hasattr(request, 'user') and is_authenticated(request.user):
-            set_actor = partial(self.set_actor, user=request.user, signal_duid=threadlocal.auditlog['signal_duid'])
-            pre_save.connect(set_actor, sender=LogEntry, dispatch_uid=threadlocal.auditlog['signal_duid'], weak=False)
+            set_actor = partial(self.set_actor, user=request.user,
+                                signal_duid=threadlocal.auditlog['signal_duid'])
+            pre_save.connect(set_actor, sender=LogEntry,
+                             dispatch_uid=threadlocal.auditlog['signal_duid'], weak=False)
 
     def process_response(self, request, response):
         """
         Disconnects the signal receiver to prevent it from staying active.
         """
         if hasattr(threadlocal, 'auditlog'):
-            pre_save.disconnect(sender=LogEntry, dispatch_uid=threadlocal.auditlog['signal_duid'])
+            pre_save.disconnect(
+                sender=LogEntry, dispatch_uid=threadlocal.auditlog['signal_duid'])
 
         return response
 
@@ -63,7 +67,8 @@ class AuditlogMiddleware(MiddlewareMixin):
         Disconnects the signal receiver to prevent it from staying active in case of an exception.
         """
         if hasattr(threadlocal, 'auditlog'):
-            pre_save.disconnect(sender=LogEntry, dispatch_uid=threadlocal.auditlog['signal_duid'])
+            pre_save.disconnect(
+                sender=LogEntry, dispatch_uid=threadlocal.auditlog['signal_duid'])
 
         return None
 
